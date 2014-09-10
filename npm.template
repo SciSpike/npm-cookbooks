@@ -1,0 +1,280 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Launches OpsWorks stack, layer, instances and associated resources to run the application.",
+  "Parameters": {
+    "AppName":{
+      "Type":"String",
+      "Default":"npm",
+      "Description":"What to call the app"
+    },
+    "InstanceType" : {
+      "Description" : "NET Device EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.medium",
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+    "GitCookbookRepo": {
+      "Default" : "https://github.com/SciSpike/npm-cookbooks.git",
+      "Type" : "String",
+      "Description": "Where the cookbooks are stored"
+    },
+    "GitAppRepo": {
+      "Default" : "https://github.com/AMCHealth/npm-server.git",
+      "Type" : "String",
+      "Description": "Where the npm application code is stored"
+    },
+    "GitAppRepoRevision" : {
+      "Type" : "String",
+      "Default" : "master",
+      "Description" : "The revision to pull"
+    },
+    "DefaultKeyPair" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+    "VPC" : {
+      "Default":"vpc-1fa55b7a",
+      "Description" : "Id of the VPC to Launch into",
+      "Type" : "String"
+    },
+    "PublicSubnet" : {
+      "Default":"subnet-826f5cc4",
+      "Description" : "Id of the public subnet",
+      "Type" : "String"
+    },
+    "PrivateSubnet" : {
+      "Default":"subnet-826f5cc4",
+      "Description" : "Id of the private subnet",
+      "Type" : "String"
+    },
+    "CouchServer" : {
+      "Default" : "http://127.0.0.1:5984",
+      "Description" : "The CouchServer you'd like VHost ActualAddress",
+      "Type" : "String"
+    },
+    "CouchAdminPassword" : {
+      "NoEcho": "true",
+      "Description" : "The CouchServer's admin password",
+      "Type" : "String"
+    },
+    "VHost" : {
+      "Default" : "npm-scispike.ddns.net",
+      "Description" : "The name of the VHost to connect to",
+      "Type" : "String"
+    },
+    "VHostCentral" : {
+      "Default" : "localhost:5984",
+      "Description" : "The name of the VHost to connect to",
+      "Type" : "String"
+    },
+    "VHostCentralPath" : {
+      "Default" : "/central/_design/app/_rewrite",
+      "Description" : "/central/_design/app/_rewrite",
+      "Type" : "String"
+    },
+    "VHostPath" : {
+      "Default" : "/registry/_design/app/_rewrite",
+      "Description" : "/registry/_design/app/_rewrite",
+      "Type" : "String"
+    },
+    "NpmMaster" : {
+      "Default" : "https://registry.npmjs.org",
+      "Description" : "the server url to whom we delegate",
+      "Type" : "String"
+    }
+  },
+  "Resources": {
+    "stack": {
+      "Type": "AWS::OpsWorks::Stack",
+      "Properties": {
+        "Name": { "Ref": "AWS::StackName" },
+        "VpcId" : { "Ref" : "VPC" },
+        "DefaultSubnetId" : { "Ref" : "PrivateSubnet" },
+        "DefaultSshKeyName" : { "Ref" : "DefaultKeyPair" },
+        "ConfigurationManager" : {
+          "Name" : "Chef",
+          "Version" : "11.10"
+        },
+        "ServiceRoleArn": { "Fn::Join": ["", ["arn:aws:iam::", {"Ref":"AWS::AccountId"}, ":role/aws-opsworks-service-role"]] },
+        "DefaultInstanceProfileArn": { "Fn::GetAtt": [ "OpsWorksInstanceProfile", "Arn" ] },
+        "CustomJson": {
+          "environment_variables":{
+            "VHOST" :{"Ref":"VHost"},
+            "VHOST_CENTRAL":{"Ref":"VHostCentral"},
+            "COUCH_PASSWORD":{"Ref":"CouchAdminPassword"},
+            "COUCH_SERVER":{"Ref":"CouchServer"},
+            "NPM_MASTER":{"Ref":"NpmMaster"},
+            "PORT":80
+          },
+          "amazon" : {
+            "region" : { "Ref" : "AWS::Region" }
+          },
+          "couch_db":{
+            "vhosts":[
+              {
+                "name":{"Ref":"VHost"},
+                "value":{"Ref":"VHostPath"}
+              },
+              {
+                "name":{"Ref":"VHostCentral"},
+                "value":{"Ref":"VHostCentralPath"}
+              }],
+            "config": {
+              "couchdb":{
+                "os_process_timeout":15000,
+                "delayed_commits":false
+              },
+              "httpd": {
+                "secure_rewrites":false,
+                "bind_address":"0.0.0.0"
+              },
+              "couch_httpd_auth" :{
+                "public_fields":"appdotnet, avatar, avatarMedium, avatarLarge, date, email, fields, freenode, fullname, github, homepage, name, roles, twitter, type, _id, _rev",
+                "users_db_public": true
+              },
+              "admins":{
+                "admin":{"Ref":"CouchAdminPassword"}
+              }
+            }
+          }
+        },
+        "DefaultOs": "Amazon Linux",
+        "UseCustomCookbooks": true,
+        "CustomCookbooksSource": {
+          "Type": "git",
+          "Url": { "Ref" : "GitCookbookRepo" },
+          "Revision" : "master"
+        }
+      }
+    },
+    "npmLayer": {
+      "Type": "AWS::OpsWorks::Layer",
+      "DependsOn": "app",
+      "Properties": {
+        "StackId": { "Ref": "stack" },
+        "Name": { "Ref" : "AppName" },
+        "Type": "nodejs-app",
+        "Shortname": { "Ref" : "AppName" },
+        "EnableAutoHealing": "true",
+        "AutoAssignElasticIps": "false",
+        "AutoAssignPublicIps": "true",
+        "CustomSecurityGroupIds" : [
+          { "Ref" : "couchDbSecurityGroup" },
+          { "Ref" : "smartProxySecurityGroup" }
+        ],
+        "CustomRecipes": {
+          "Setup":[ "couchdb-cookbook::source" ]
+        },
+        "VolumeConfigurations" : [
+          {
+            "MountPoint" : "/usr/local/var/lib/couchdb",
+            "NumberOfDisks" : 2,
+            "RaidLevel" : 1,
+            "Size" : 20
+          }
+        ]
+      }
+    },
+    "app": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "StackId": { "Ref": "stack" },
+        "Name": { "Ref" : "AppName" },
+        "Type": "nodejs",
+        "AppSource": {
+          "Type": "git",
+          "Url": { "Ref" : "GitAppRepo" },
+          "Revision" : { "Ref" : "GitAppRepoRevision" }
+        }
+      }
+    },
+     "npmInstance": {
+      "Type": "AWS::OpsWorks::Instance",
+      "Properties": {
+        "StackId": { "Ref": "stack" },
+        "LayerIds": [ { "Ref": "npmLayer" } ],
+        "InstallUpdatesOnBoot": false,
+        "InstanceType": { "Ref" : "InstanceType" },
+        "RootDeviceType": "ebs",
+        "Architecture": "x86_64",
+        "SubnetId" : {"Ref" : "PublicSubnet"}
+      }
+    },
+
+    "couchDbSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription" : "Allow inbound requests from the ELB to the OpsWorks instances",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5984",
+            "ToPort": "5984",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "smartProxySecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription" : "Allow inbound requests from the ELB to the OpsWorks instances",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "OpsWorksInstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": [ "ec2.amazonaws.com" ] },
+              "Action": [ "sts:AssumeRole" ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "opsworks-service",
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ec2:*",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "OpsWorksInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "OpsWorksInstanceRole" } ]
+      }
+    }
+  },
+  "Outputs": {
+    "StackId": { "Value": { "Ref": "stack" } }
+  }
+}

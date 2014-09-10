@@ -1,0 +1,16 @@
+; CouchDB Configuration Settings
+; Generated and managed by Chef
+
+<% @config.each do |section, parameters| %>
+[<%= section %>]
+<% parameters.each do |key, value| %>
+<%= key %> = <%= value %>
+<% end %>
+
+<% end %>
+
+[vhosts]
+<% node['couch_db']['vhosts'].each do |vhost| %>
+<%= vhost[:name] %> = <%= vhost[:value] %>
+<% end %>
+
