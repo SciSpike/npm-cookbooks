@@ -7,6 +7,11 @@
       "Default":"npm",
       "Description":"What to call the app"
     },
+    "DefaultOs" : {
+      "Description" : "The os for the app",
+      "Type" : "String",
+      "Default" : "Amazon Linux"
+    },
     "InstanceType" : {
       "Description" : "NET Device EC2 instance type",
       "Type" : "String",
@@ -44,11 +49,6 @@
     "PublicSubnet" : {
       "Default":"subnet-826f5cc4",
       "Description" : "Id of the public subnet",
-      "Type" : "String"
-    },
-    "PrivateSubnet" : {
-      "Default":"subnet-826f5cc4",
-      "Description" : "Id of the private subnet",
       "Type" : "String"
     },
     "CouchServer" : {
@@ -93,7 +93,7 @@
       "Properties": {
         "Name": { "Ref": "AWS::StackName" },
         "VpcId" : { "Ref" : "VPC" },
-        "DefaultSubnetId" : { "Ref" : "PrivateSubnet" },
+        "DefaultSubnetId" : { "Ref" : "PublicSubnet" },
         "DefaultSshKeyName" : { "Ref" : "DefaultKeyPair" },
         "ConfigurationManager" : {
           "Name" : "Chef",
@@ -142,7 +142,7 @@
             }
           }
         },
-        "DefaultOs": "Amazon Linux",
+        "DefaultOs": { "Ref": "DefaultOs" },
         "UseCustomCookbooks": true,
         "CustomCookbooksSource": {
           "Type": "git",
