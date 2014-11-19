@@ -12,6 +12,11 @@
       "Type" : "String",
       "Default" : "Amazon Linux"
     },
+    "StorageSize" : {
+      "Description" : "How big the secondary storage",
+      "Type" : "Number",
+      "Default": "20"
+    },
     "InstanceType" : {
       "Description" : "NET Device EC2 instance type",
       "Type" : "String",
@@ -174,7 +179,7 @@
             "MountPoint" : "/usr/local/var/lib/couchdb",
             "NumberOfDisks" : 2,
             "RaidLevel" : 1,
-            "Size" : 20
+            "Size" : { "Ref" : "StorageSize" }
           }
         ]
       }
