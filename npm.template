@@ -29,7 +29,7 @@
       "Description": "Where the cookbooks are stored"
     },
     "GitAppRepo": {
-      "Default" : "https://github.com/AMCHealth/npm-server.git",
+      "Default" : "https://github.com/SciSpike/npm-server.git",
       "Type" : "String",
       "Description": "Where the npm application code is stored"
     },
