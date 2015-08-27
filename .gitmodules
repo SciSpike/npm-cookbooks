@@ -16,3 +16,6 @@
 [submodule "apt"]
 	path = apt
 	url = https://github.com/opscode-cookbooks/apt.git
+[submodule "stunnel"]
+	path = stunnel
+	url = git@github.com:hw-cookbooks/stunnel.git
