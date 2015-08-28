@@ -16,9 +16,6 @@
 [submodule "apt"]
 	path = apt
 	url = https://github.com/opscode-cookbooks/apt.git
-[submodule "nginx_ssl_proxy"]
-	path = nginx_ssl_proxy
-	url = https://github.com/coroutine/chef-nginx_ssl_proxy.git
 [submodule "nginx"]
 	path = nginx
 	url = https://github.com/miketheman/nginx.git
