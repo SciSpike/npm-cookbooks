@@ -42,7 +42,7 @@ http {
     
     <% @ssl_server_declarations.each do |ssl_server| %>
     server {
-        listen               <%= ssl_server["ssl_listen"] %> default ssl;
+        listen               <%= ssl_server["ssl_listen"] %>;
         ssl                  on;
         ssl_certificate      <%= ssl_server["crt_path"] %>;
         ssl_certificate_key  <%= ssl_server["key_path"] %>; 
