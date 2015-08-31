@@ -24,11 +24,13 @@ http {
     keepalive_timeout  <%= node[:nginx][:keepalive_timeout] %>; 
     <% end %>
 
-    upstream <%= node[:nginx][:upstream][:name] %> {
-        <% node[:nginx][:upstream][:servers].each do |s| %>
-        server <%= s[:address] -%> max_fails=<%= s[:max_fails] -%> fail_timeout=<%= s[:fail_timeout] -%> weight=<%= s[:weight] -%><%- if s[:down] -%> down <%- end -%>;
-        <% end %>
-    }
+    <% if node[:nginx][:upstream][:servers].any? %>
+      upstream <%= node[:nginx][:upstream][:name] %> {
+          <% node[:nginx][:upstream][:servers].each do |s| %>
+          server <%= s[:address] -%> max_fails=<%= s[:max_fails] -%> fail_timeout=<%= s[:fail_timeout] -%> weight=<%= s[:weight] -%><%- if s[:down] -%> down <%- end -%>;
+          <% end %>
+      }
+    <% end %>
 
     <% if node[:nginx][:ssl_only] %>
     server {
